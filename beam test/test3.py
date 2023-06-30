@@ -43,3 +43,6 @@ v.add_support('pinned', 0)
 v.add_support('roller', v.L)
 v.add_load(v.L/2, 69, 'down')
 v.reactions()
+
+for support in v.supports:
+    print(support.xreaction, support.yreaction)
