@@ -50,7 +50,7 @@ class Beam:
             # Fx
             support.xreaction = 0
             # Fy
-            support.yreaction = -self.point_load/2
+            support.yreaction = -round(self.point_load/2, 2)
             
     # almacenar todas las cargas
     def loads(self):
