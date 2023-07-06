@@ -1,5 +1,5 @@
 # Caso hipotético: viga simplemente apoyada con una carga puntual en el centro
-# Calcula: reacciones
+# Calcula: reacciones | fuerza cortante | momento flector
 # Dibuja: viga | apoyos "pinned" o "roller" | carga puntual | reacciones | diagrama fuerza cortante | diagrama momento flector
 
 import numpy as np
@@ -149,6 +149,7 @@ class Beam:
         self.draw_reactions()
         plt.axis('equal')
         plt.show()
+        
         
     # artistas diagramas
     # dibujar diagrama de fuerza cortante

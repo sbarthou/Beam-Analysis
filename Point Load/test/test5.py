@@ -1,5 +1,5 @@
 # Caso hipotético: viga simplemente apoyada con una carga puntual en el centro
-# Calcula: reacciones
+# Calcula: reacciones | fuerza cortante
 # Dibuja: viga | apoyos "pinned" o "roller" | carga puntual | reacciones | diagrama fuerza cortante
 
 import matplotlib.pyplot as plt

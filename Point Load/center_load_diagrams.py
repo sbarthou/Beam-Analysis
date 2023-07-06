@@ -1,6 +1,6 @@
 # Caso hipotético: viga simplemente apoyada con una carga puntual en el centro
-# Calcula: reacciones | fuerza cortante
-# Dibuja: viga | apoyos "pinned" o "roller" | carga puntual | reacciones | diagrama fuerza cortante
+# Calcula: reacciones
+# Dibuja: viga | apoyos "pinned" o "roller" | carga puntual | reacciones | diagrama fuerza cortante | diagrama momento flector
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -62,6 +62,7 @@ class Beam:
                 node.load = self.point_load
             elif node.type == 'support':
                 node.load = self.supports[suppport_id][0].yreaction
+                suppport_id += 1
         
         self.nodes = sorted(self.nodes, key=lambda x: x.pos)   # ordenar nodos por posición
 
@@ -173,6 +174,7 @@ class Beam:
         
         y_max = max(abs(np.asarray(y)))
         ax.set_ylim(-(y_max * 2), (y_max * 2))
+        # ax.set_aspect(0.3)
         
         ax.yaxis.set_visible(True)
         ax.spines['left'].set_visible(True)
@@ -182,6 +184,32 @@ class Beam:
         ax.set_axisbelow(True)   # cuadrícula detrás de la gráfica
         ax.set_title('Diagrama de fuerza cortante')
         
+        self.draw_beam_elements(['beam'])
+        
+    # dibujar diagrama de momento flector (método de areas)
+    def draw_moment(self):
+        self.reactions()
+        self.loads()
+        
+        area1 = self.nodes[0].load * self.nodes[1].pos
+        area2 = (self.nodes[0].load + self.nodes[1].load) * (self.nodes[2].pos - self.nodes[1].pos)
+        
+        x = [node.pos for node in self.nodes]
+        y = [0, area1, area1+area2]
+        ax.plot(x, y)
+        ax.fill_between(x, y, color='#328DCB', alpha=0.5)
+
+        y_max = max(abs(np.asarray(y)))
+        ax.set_ylim(-(y_max * 2), (y_max * 2))
+        
+        ax.yaxis.set_visible(True)
+        ax.spines['left'].set_visible(True)
+        ax.grid(linewidth=0.2)   # cuadrícula
+        ax.minorticks_on()   # sub valores ejes
+        ax.grid(linewidth=0.1, which='minor', linestyle=':')   # sub cuadrícula
+        ax.set_axisbelow(True)   # cuadrícula detrás de la gráfica
+        ax.set_title('Diagrama de momento flector')
+        ax.invert_yaxis()
         self.draw_beam_elements(['beam'])
         
         

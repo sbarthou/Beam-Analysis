@@ -1,4 +1,4 @@
-# Caso hipotético: viga simplemente apoyada con una carga puntual en el centro
+# Caso hipotético: viga simplemente apoyada con una carga puntual no en el centro
 # Calcula: reacciones
 # Dibuja: viga | apoyos "pinned" o "roller" | carga puntual | reacciones | diagrama fuerza cortante | diagrama momento flector
 
@@ -38,34 +38,31 @@ class Beam:
     # agregar carga puntual
     def add_load(self, pos, P, d):
         self.load_pos = pos   # posición carga
-        self.point_load = P   # magnitud carga
+        self.P = P   # magnitud carga
         self.load_d = d   # dirección carga ('up' o 'down')
         if d == 'down':
-            self.point_load = -P   # signo carga (positivo hacia arriba, negativo hacia abajo)
+            self.P = -P   # signo carga (positivo hacia arriba, negativo hacia abajo)
         self.nodes.append(self.Node('load', pos, None))
     
     # calcular reacciones
     def reactions(self):
-        for support_list in self.supports:
-            support = support_list[0]
-            # Fx
-            support.xreaction = 0
-            # Fy
-            support.yreaction = -round(self.point_load/2, 2)
-            
+        self.supports[0][0].yreaction = round((abs(self.P) * (1 - self.load_pos/self.L)), 2)
+        self.supports[1][0].yreaction = round((abs(self.P) - self.supports[0][0].yreaction), 2)
+        
     # almacenar todas las cargas
     def loads(self):
         sorted_supports_id = sorted(self.supports, key=lambda x: x[1])   # ordenar apoyos por id
         suppport_id = 0   # contador id apoyo
         for node in self.nodes:
             if node.type == 'load':
-                node.load = self.point_load
+                node.load = self.P
             elif node.type == 'support':
                 node.load = self.supports[suppport_id][0].yreaction
+                suppport_id += 1
         
         self.nodes = sorted(self.nodes, key=lambda x: x.pos)   # ordenar nodos por posición
-
-        
+            
+            
     # artistas de viga
     # dibujar viga
     def draw_beam(self):
@@ -108,7 +105,7 @@ class Beam:
         text_dy = arrow_h + arrow_h/4
         if self.load_d == 'down':
             ax.arrow(self.load_pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color='black', linewidth=0.5)
-            ax.text(self.load_pos, text_dy, f'{abs(self.point_load)} kN', horizontalalignment='center', verticalalignment='center', fontsize=8)
+            ax.text(self.load_pos, text_dy, f'{abs(self.P)} kN', horizontalalignment='center', verticalalignment='center', fontsize=8)
             
     # dibujar reacciones
     def draw_reactions(self):
@@ -149,6 +146,7 @@ class Beam:
         self.draw_reactions()
         plt.axis('equal')
         plt.show()
+        
         
     # artistas diagramas
     # dibujar diagrama de fuerza cortante
@@ -215,7 +213,7 @@ class Beam:
 v = Beam(10)
 v.add_support('pinned', 0)
 v.add_support('roller', v.L)
-v.add_load(v.L/2, 10, 'down')
+v.add_load(7, 10, 'down')
 
 fig, ax = plt.subplots()
 
@@ -225,4 +223,4 @@ ax.spines['left'].set_visible(False)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
         
-v.draw_moment()
+v.draw_shear()
