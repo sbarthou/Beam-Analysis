@@ -1,5 +1,5 @@
 # Caso hipotético: viga simplemente apoyada con una carga puntual no en el centro
-# Calcula: reacciones
+# Calcula: reacciones | fuerza cortante | momento flector
 # Dibuja: viga | apoyos "pinned" o "roller" | carga puntual | reacciones | diagrama fuerza cortante | diagrama momento flector
 
 import numpy as np
@@ -19,14 +19,12 @@ class Beam:
             self.xreaction = None   # reacción en x
             self.yreaction = None   # reacción en y
             self.pos = pos   # posición apoyo
-            self.id = int   # id apoyo
 
     # creador de nodos
     class Node:
         def __init__(self, node_type, pos, support_id):
             self.type = node_type   # tipo de nodo ('support' o 'load')
             self.pos = pos   # posición nodo
-            self.id = support_id   # id apoyo (si es apoyo) o None (si es carga)
             self.load = None   # carga en nodo
     
     # agregar apoyos
@@ -51,7 +49,6 @@ class Beam:
         
     # almacenar todas las cargas
     def loads(self):
-        sorted_supports_id = sorted(self.supports, key=lambda x: x[1])   # ordenar apoyos por id
         suppport_id = 0   # contador id apoyo
         for node in self.nodes:
             if node.type == 'load':
