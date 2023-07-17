@@ -1,4 +1,4 @@
-# Caso hipotético: viga simplemente apoyada con dos cargas puntuales de igual magnitud y misma distancia desde los apoyos
+# Caso hipotético: viga simplemente apoyada con dos cargas puntuales
 # Calcula: reacciones | fuerza cortante | momento flector
 # Dibuja: viga | apoyos "pinned" o "roller" | carga puntual | reacciones | diagrama fuerza cortante | diagrama momento flector
 
@@ -45,7 +45,7 @@ class Beam:
         self.supports.append(self.Support(support_type, pos, self.support_id_count))
         self.nodes.append(self.Node('support', pos, self.support_id_count))
         self.support_id_count += 1   # contador id apoyo
-    
+        
     # agregar carga puntual
     def add_load(self, pos, P, d):
         if d == 'down':
@@ -56,9 +56,11 @@ class Beam:
     
     # calcular reacciones
     def reactions(self):
-        for support in self.supports:
-            if self.loads[0].d == 'down':
-                support.yreaction = -self.loads[0].P
+        # Fy = 0
+        sum_loads = sum([load.P for load in self.loads])   # suma de todas las cargas, las cargas quedan igualadas a este valor (Ay + By = sum_loads)
+        # M = 0 (respecto al primer apoyo (A))
+        self.supports[1].yreaction = -(self.loads[0].P * self.loads[0].pos + self.loads[1].P * self.loads[1].pos)/self.L   # reacción segundo soporte (B)
+        self.supports[0].yreaction = -sum_loads - self.supports[1].yreaction   # reacción primer soporte (A)
             
         self.supports = sorted(self.supports, key=lambda x: x.pos)   # ordenar apoyos por posición
         
@@ -77,7 +79,8 @@ class Beam:
     
         self.nodes = sorted(self.nodes, key=lambda x: x.pos)   # ordenar nodos por posición
     
-    # artistas de viga
+    
+    # artistas de viga    
     # dibujar viga
     def draw_beam(self):
         ax.hlines(y=0, xmin=0, xmax=self.L, color='black', linewidth=3)
@@ -130,18 +133,18 @@ class Beam:
             text_dy = arrow_h + arrow_h/4
             if support.yreaction > 0:
                 ax.arrow(support.pos, -arrow_h, 0, arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor='red', linewidth=0.5)
-                ax.text(support.pos, -text_dy, f'{support.yreaction} kN', horizontalalignment='center', verticalalignment='center', fontsize=8)
+                ax.text(support.pos, -text_dy, f'{round(support.yreaction, 2)} kN', horizontalalignment='center', verticalalignment='center', fontsize=8)   # reacción redondeada a 2 decimales
     
     # dibujar solicitado
-    def draw_beam_elements(self, solicitado):   # solicitado = ['beam', 'supports', 'load', 'reactions']
+    def draw_beam_elements(self, solicitado):   # solicitado = ['beam', 'supports', 'loads', 'reactions']
         self.reactions()
         for artist in solicitado:
             if artist == 'beam':
                 self.draw_beam()
             elif artist == 'supports':
                 self.draw_supports()
-            elif artist == 'load':
-                self.draw_load()
+            elif artist == 'loads':
+                self.draw_loads()
             elif artist == 'reactions':
                 self.draw_reactions()
         if solicitado == ['beam']:
@@ -150,7 +153,7 @@ class Beam:
             plt.axis('equal')
             plt.show()
             
-    # dibujar todo
+    # dibujar todos los elementos de la viga
     def draw_beam_all(self):
         self.reactions()
         self.draw_beam()
@@ -226,7 +229,7 @@ class Beam:
         
 v = Beam(10)
 v.add_support('pinned', 0)
-v.add_support('roller', v.L)
+v.add_support('roller', 8)
 v.add_load(3, 10, 'down')
 v.add_load(7, 10, 'down')
 
@@ -238,4 +241,4 @@ ax.spines['left'].set_visible(False)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
         
-v.draw_shear()
+v.draw_moment()
