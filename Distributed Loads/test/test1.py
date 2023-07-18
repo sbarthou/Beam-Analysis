@@ -1,7 +1,6 @@
-# Caso hipotético: viga simplemente apoyada con cargas puntuales
-# Calcula: reacciones | fuerza cortante | momento flector
-# Dibuja: viga | apoyos "pinned" o "roller" | carga puntual | reacciones | diagrama fuerza cortante | diagrama momento flector
-
+# Caso hipotético: viga simplemente apoyada con cargas puntuales y/o distribuídas uniformes
+# Calcula: reacciones
+# Dibuja: viga | apoyos "pinned" o "roller" | carga puntual | carga distribuída uniforme | reacciones
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -11,7 +10,8 @@ class Beam:
         self.L = L   # largo viga
         self.nodes = []   # [Node]
         self.supports = []   # [Support]
-        self.loads = []   # [Load]
+        self.loads = []   # [Load, type]
+        self.eq_loads = []   # [Load]
         
     # creador de nodos
     class Node:
@@ -27,29 +27,56 @@ class Beam:
             self.pos = pos   # posición apoyo
             self.yreaction = None   # reacción en y
             
-    # creador de cargas
-    class Load:
+    # creador de cargas puntuales
+    class point_Load:
         def __init__(self, pos, P, d):
             self.pos = pos   # posición carga
             self.P = P   # magnitud carga
             self.d = d   # dirección carga ('up' o 'down')
     
+    # creador de cargas distribuídas
+    class distributed_Load:
+        def __init__(self, start_pos, end_pos, P, d):
+            self.start_pos = start_pos
+            self.end_pos = end_pos
+            self.P = P
+            self.d = d
+            
     # agregar apoyos
     def add_support(self, support_type, pos):
         self.supports.append(self.Support(support_type, pos))
         self.nodes.append(self.Node('support', pos))
         
     # agregar carga puntual
-    def add_load(self, pos, P, d):
+    def add_point_load(self, pos, P, d):
         if d == 'down':
             P = -P   # signo carga (positivo hacia arriba, negativo hacia abajo)
-        self.loads.append(self.Load(pos, P, d))
+        self.loads.append([self.point_Load(pos, P, d), 'point'])
         self.nodes.append(self.Node('load', pos))
+        
+    # agregar carga distribuída
+    def add_distributed_load(self, start_pos, end_pos, P, d):
+        if d == 'down':
+            P = -P   # signo carga (positivo hacia arriba, negativo hacia abajo)
+        self.loads.append([self.distributed_Load(start_pos, end_pos, P, d), 'distributed'])
+        
+    # calcular cargas equivalentes
+    def equivalent_loads(self):
+        for load in self.loads:
+            if load[1] == 'point':
+                self.eq_loads.append(load[0])
+            elif load[1] == 'distributed':
+                pos = (load[0].start_pos + load[0].end_pos)/2
+                P = load[0].P * (load[0].end_pos - load[0].start_pos)
+                self.eq_loads.append(self.point_Load(pos, P, load[0].d))
+                self.nodes.append(self.Node('load', pos))
         
     # calcular reacciones
     def reactions(self):
-        sum_loads = sum([load.P for load in self.loads])
-        By = -sum([load.P * load.pos for load in self.loads])/self.supports[1].pos   # Despejamos By en la ecuación de momento respecto a A.
+        self.equivalent_loads()
+        
+        sum_loads = sum([load.P for load in self.eq_loads])
+        By = -sum([load.P * load.pos for load in self.eq_loads])/self.supports[1].pos   # Despejamos By en la ecuación de momento respecto a A.
         Ay = -sum_loads - By
         self.supports[0].yreaction = Ay
         self.supports[1].yreaction = By
@@ -66,7 +93,7 @@ class Beam:
                 node.load = self.supports[support_id].yreaction
                 support_id += 1
             elif node.type == 'load':
-                node.load = self.loads[load_id].P
+                node.load = self.eq_loads[load_id].P
                 load_id += 1
     
         self.nodes = sorted(self.nodes, key=lambda x: x.pos)   # ordenar nodos por posición
@@ -108,13 +135,27 @@ class Beam:
     # dibujar cargas    
     def draw_loads(self):
         for load in self.loads:
-            arrow_h = self.L/6.8
-            arrow_w = self.L/170
-            head_w = self.L/(17/0.35)
-            text_dy = arrow_h + arrow_h/4
-            if load.d == 'down':
-                ax.arrow(load.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color='black', linewidth=0.5)
-                ax.text(load.pos, text_dy, f'{abs(load.P)} kN', horizontalalignment='center', verticalalignment='center', fontsize=8)
+            if load[1] == 'point':
+                arrow_h = self.L/6.8
+                arrow_w = self.L/170
+                head_w = self.L/(17/0.35)
+                text_dy = arrow_h + arrow_h/4
+                if load[0].d == 'down':
+                    ax.arrow(load[0].pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color='black', linewidth=0.5)
+                    ax.text(load[0].pos, text_dy, f'{abs(load[0].P)} kN', horizontalalignment='center', verticalalignment='center', fontsize=8)
+            else:
+                arrow_h = self.L/9.5
+                arrow_w = self.L/380
+                head_w = self.L/80
+                text_dy = arrow_h + arrow_h/4
+                dist = load[0].end_pos - load[0].start_pos
+                mid_pos = (load[0].start_pos + load[0].end_pos)/2
+                if load[0].d == 'down':
+                    if isinstance(dist, int):
+                        for i in range(load[0].start_pos, load[0].end_pos + 1):
+                            ax.arrow(i, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color='black', linewidth=0.5)
+                    ax.hlines(y=arrow_h, xmin=load[0].start_pos, xmax=load[0].end_pos, color='black', linewidth=1.3)
+                    ax.text(mid_pos, text_dy, f'{abs(load[0].P)} kN$\cdot$m', horizontalalignment='center', verticalalignment='center', fontsize=8)
                 
     # dibujar reacciones
     def draw_reactions(self):
@@ -129,7 +170,7 @@ class Beam:
             elif support.yreaction < 0:
                 ax.arrow(support.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor='red', linewidth=0.5)
                 ax.text(support.pos, text_dy, f'{round(abs(support.yreaction), 2)} kN', horizontalalignment='center', verticalalignment='center', fontsize=8)
-    
+                
     # dibujar solicitado
     def draw_beam_elements(self, solicitado):   # solicitado = ['beam', 'supports', 'loads', 'reactions']
         self.reactions()
@@ -157,92 +198,14 @@ class Beam:
         self.draw_reactions()
         plt.axis('equal')
         plt.show()
-        
-        
-    # artistas diagramas
-    # dibujar diagrama de fuerza cortante
-    def draw_shear(self):
-        self.forces()
-        
-        x = []
-        y = []
-        
-        for i in range(len(self.nodes)):
-            x.append(self.nodes[i].pos)
-            x.append(self.nodes[i].pos)
-            if i == 0:
-                y.append(0)
-                y.append(y[-1] + self.nodes[i].load)
-            else:
-                y.append(y[-1])
-                y.append(y[-1] + self.nodes[i].load)
                 
-        ax.plot(x, y, color='#1F77B4')
-        ax.fill_between(x, y, color='#328DCB', alpha=0.4)
-        
-        y_max = max(abs(np.asarray(y)))
-        ax.set_ylim(-(y_max * 2), (y_max * 2))
-        # ax.set_aspect(0.3)
-        
-        ax.yaxis.set_visible(True)
-        ax.spines['left'].set_visible(True)
-        ax.grid(linewidth=0.2)   # cuadrícula
-        ax.minorticks_on()   # sub valores ejes
-        ax.grid(linewidth=0.1, which='minor', linestyle=':')   # sub cuadrícula
-        ax.set_axisbelow(True)   # cuadrícula detrás de la gráfica
-        ax.set_title('Diagrama de fuerza cortante')
-        
-        self.draw_beam_elements(['beam'])
-        
-    # dibujar diagrama de momento flector
-    def draw_moment(self):
-        self.forces()
 
-        tramos = []
-        n = 0
-        for i in range(1, len(self.nodes)):
-            lst = []
-            for j in range(n, self.L + 1):
-                lst.append(j)
-                if self.nodes[i].pos == j:
-                    tramos.append(lst)
-                    n = j+1
-                    break
-
-        X = []
-        Y = []
-
-        for i in range(len(tramos)):
-            x = np.asarray(tramos[i])
-            X.extend(x)
-            y = sum([node.load * (x - node.pos) for node in self.nodes][:i+1])
-            Y.extend(y)
-            
-        ax.plot(X, Y)
-        
-        ax.fill_between(X, Y, color='#328DCB', alpha=0.4)
-
-        y_max = max(abs(np.asarray(Y)))
-        ax.set_ylim(-(y_max * 2), (y_max * 2))
-
-        ax.yaxis.set_visible(True)
-        ax.spines['left'].set_visible(True)
-        ax.grid(linewidth=0.2)   # cuadrícula
-        ax.minorticks_on()   # sub valores ejes
-        ax.grid(linewidth=0.1, which='minor', linestyle=':')   # sub cuadrícula
-        ax.set_axisbelow(True)   # cuadrícula detrás de la gráfica
-        ax.set_title('Diagrama de momento flector')
-        ax.invert_yaxis()
-        self.draw_beam_elements(['beam'])    
-        
-        
-        
-v = Beam(12)
+v = Beam(10)
 v.add_support('pinned', 0)
 v.add_support('roller', v.L)
-v.add_load(3, 5, 'down')
-v.add_load(6, 10, 'down')
-v.add_load(9, 5, 'down')
+v.add_distributed_load(2, 5, 3, 'down')
+v.add_distributed_load(7, 9, 8, 'down')
+v.add_point_load(4.5, 7, 'down')
 
 fig, ax = plt.subplots()
 
@@ -252,4 +215,4 @@ ax.spines['left'].set_visible(False)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 
-v.draw_moment()
+v.draw_beam_all()
