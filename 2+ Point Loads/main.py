@@ -5,6 +5,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
+fig, ax = plt.subplots()
+
+# no mostrar ejes
+ax.yaxis.set_visible(False)
+ax.spines['left'].set_visible(False)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
 # creador de viga
 class Beam:
     def __init__(self, L):
@@ -235,20 +243,7 @@ class Beam:
         self.draw_beam_elements(['beam'])    
         
         
-        
-v = Beam(12)
-v.add_support('pinned', 0)
-v.add_support('roller', v.L)
-v.add_load(3, 5, 'down')
-v.add_load(6, 10, 'down')
-v.add_load(9, 5, 'down')
+# Inicializa viga, agrega apoyos y cargas
 
-fig, ax = plt.subplots()
 
-# no mostrar ejes
-ax.yaxis.set_visible(False)
-ax.spines['left'].set_visible(False)
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-
-v.draw_moment()
+# Dibuja viga o diagrama

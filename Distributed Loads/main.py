@@ -6,6 +6,14 @@ import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
 
+fig, ax = plt.subplots()
+
+# no mostrar ejes
+ax.yaxis.set_visible(False)
+ax.spines['left'].set_visible(False)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+
 # creador de viga
 class Beam:
     def __init__(self, L):
@@ -501,19 +509,7 @@ class Beam:
         self.draw_beam_elements(['beam'])
            
 
+# Inicializa viga, agrega apoyos y cargas
 
-v = Beam(10)
-v.add_support('pinned', 0) 
-v.add_support('roller', v.L)
-v.add_point_load(3, 10)
-v.add_distributed_load(5, 7, 5)
 
-fig, ax = plt.subplots()
-
-# no mostrar ejes
-ax.yaxis.set_visible(False)
-ax.spines['left'].set_visible(False)
-ax.spines['top'].set_visible(False)
-ax.spines['right'].set_visible(False)
-
-v.draw_beam_all(load_lines=True)
+# Dibuja viga o diagrama
