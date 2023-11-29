@@ -6,6 +6,7 @@ import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
 
+# Cosntructores
 # creador de viga
 class Beam:
     def __init__(self, L):
@@ -67,6 +68,7 @@ class Beam:
             self.d = d   # dirección carga ('up' o 'down')
             self.node_id = node_id   # id nodo
             
+    # Agregar elementos        
     # agregar apoyos
     def add_support(self, support_type, pos):
         objeto = self.Support(support_type, pos, self.node_id)
@@ -94,12 +96,15 @@ class Beam:
         self.nodes.append(self.Node('distributed_load_R', end_pos, self.node_id, objeto))
         self.node_id += 1
         
+    # Calculos    
     # calcular cargas equivalentes
     def equivalent_loads(self):
         for carga in self.cargas:
-            if type(carga).__name__ == 'point_Load':
+            # if type(carga).__name__ == 'point_Load':
+            if carga.type == 'point':
                 self.eq_cargas.append(carga)
-            elif type(carga).__name__ == 'distributed_Load':
+            # elif type(carga).__name__ == 'distributed_Load':
+            elif carga.type == 'distributed':
                 pos = (carga.start_pos + carga.end_pos)/2
                 load = carga.load * (carga.end_pos - carga.start_pos)
                 self.eq_cargas.append(self.point_Load(pos, load, carga.d, self.node_id))
@@ -148,7 +153,8 @@ class Beam:
                 
             # eq_forces: fuerzas equivalentes en cargas puntuales
             for force in self.forces:
-                if type(force).__name__ == 'distributed_Load':
+                # if type(force).__name__ == 'distributed_Load':
+                if force.type == 'distributed':
                     length = force.end_pos - force.start_pos
                     load = force.load * length
                     pos = (force.start_pos + force.end_pos)/2
@@ -307,7 +313,7 @@ class Beam:
         return M              
     
      
-    # artistas de viga    
+    # Artistas de viga    
     # dibujar viga
     def draw_beam(self):
         ax.hlines(y=0, xmin=0, xmax=self.L, color='black', linewidth=3)
@@ -348,7 +354,8 @@ class Beam:
     # dibujar cargas    
     def draw_loads(self):
         for carga in self.cargas:
-            if type(carga).__name__ == 'point_Load':
+            # if type(carga).__name__ == 'point_Load':
+            if carga.type == 'point':
                 arrow_h = self.L/6.8
                 arrow_w = self.L/250
                 head_w = self.L/60
@@ -356,6 +363,7 @@ class Beam:
                 if carga.d == 'down':
                     ax.arrow(carga.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color='black', linewidth=0.5, zorder=4)
                     ax.text(carga.pos, text_dy, f'{abs(carga.load)} kN', horizontalalignment='center', verticalalignment='center', fontsize=8, zorder=4)
+                    
             else:
                 arrow_h = self.L/9.5
                 arrow_w = self.L/380
@@ -445,7 +453,7 @@ class Beam:
         plt.show()
         
         
-    # artistas diagramas
+    # Artistas diagramas
     # dibujar diagrama de fuerza cortante
     def draw_shear(self, nodes=False):
         V = self.shear_force()
@@ -454,7 +462,17 @@ class Beam:
         x = np.array(x, dtype=float)
         V = np.array(V, dtype=float)
         
+        # V_max_y = max(V)
+        # V_max_y_i = list(V).index(V_max_y)
+        # V_max_x = x[V_max_y_i]
+        
+        # V_min_y = min(V)
+        # V_min_y_i = list(V).index(V_min_y)
+        # V_min_x = x[V_min_y_i]
+        
         ax.plot(x, V)
+        # ax.plot(V_max_x, V_max_y, color='blue', marker='.')
+        # ax.plot(V_min_x, V_min_y, color='red', marker='.')
 
         ax.fill_between(x, V, color='#328DCB', alpha=0.4)
         
@@ -474,7 +492,7 @@ class Beam:
         self.draw_beam_elements(['beam'])
         
     # dibujar diagrama de momento flector
-    def draw_moment(self, nodes=False):
+    def draw_moment(self, nodes=False, M_max=False):
         M = self.bending_moment()
         tramosX, tramosX_ex, tramos, x, x_ex = self.tramos()
         
@@ -482,6 +500,13 @@ class Beam:
         M = np.array(M, dtype=float)
         
         ax.plot(x_ex, M)
+        
+        if M_max == True:
+            M_max_y = max(M)
+            M_max_y_i = list(M).index(M_max_y)
+            M_max_x = x_ex[M_max_y_i]
+            ax.plot(M_max_x, M_max_y, color='red', marker='.')
+            ax.text(M_max_x, M_max_y, (M_max_x, M_max_y), horizontalalignment='center', verticalalignment='center', fontsize=8, zorder=4)
 
         ax.fill_between(x_ex, M, color='#328DCB', alpha=0.4)
         
@@ -506,7 +531,7 @@ v = Beam(10)
 v.add_support('pinned', 0) 
 v.add_support('roller', v.L)
 v.add_point_load(3, 10)
-v.add_distributed_load(5, 7, 5)
+v.add_distributed_load(5, 8, 5)
 
 fig, ax = plt.subplots()
 
@@ -516,4 +541,4 @@ ax.spines['left'].set_visible(False)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 
-v.draw_beam_all(load_lines=True)
+v.draw_moment(M_max=True)
