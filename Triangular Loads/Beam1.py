@@ -1,66 +1,22 @@
 import numpy as np
 import sympy as sp
 import matplotlib.pyplot as plt
+from constructores.Node import Node
+from constructores.Element import Element
+from constructores.Support import Support
+from constructores.PointLoad import PointLoad
+from constructores.DistributedLoad import DistributedLoad
+from constructores.TriangularLoad import TriangularLoad
 
 
 fig, ax = plt.subplots()
-
 # no mostrar ejes
 ax.yaxis.set_visible(False)
 ax.spines['left'].set_visible(False)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
-
-
-# creador de nodos
-class Node:
-    def __init__(self, node_type, pos, node_id, objeto):
-        self.type = node_type  # tipo de nodo ('support' , 'point_load' , 'distributed_load_L' , 'distributed_load_R' , 'support_load' , 'load_support)
-        self.pos = pos  # posición nodo
-        self.load = None  # carga en nodo
-        self.load_num = None  # número de cargas en el nodo
-        self.id = node_id  # id nodo
-        self.objeto = objeto
-
-
-# creador de elementos
-class Element:
-    def __init__(self, l_node, r_node, subx=0):
-        self.l_node = l_node  # nodo en extremo izquierdo
-        self.r_node = r_node  # nodo en extremo derecho
-        self.length = r_node.pos - l_node.pos  # largo del elemento
-        self.subx = subx  # número que se le restará a x al calcular el momento
-
-
-# creador de apoyos
-class Support:
-    def __init__(self, support_type, pos, node_id):
-        self.type = support_type  # pinned , roller
-        self.pos = pos  # posición apoyo
-        self.yreaction = None  # reacción en y
-        self.node_id = node_id  # id nodo
-
-
-# creador de cargas puntuales
-class PointLoad:
-    def __init__(self, pos, load, d="down", node_id=None):
-        self.type = "point"
-        self.pos = pos  # posición carga
-        self.load = load  # magnitud carga
-        self.d = d  # dirección carga ('up' o 'down')
-        self.node_id = node_id  # id nodo
-
-
-# creador de cargas distribuidas
-class DistributedLoad:
-    def __init__(self, start_pos, end_pos, load, d="down", node_id=None):
-        self.type = "distributed"
-        self.start_pos = start_pos  # posición inicial
-        self.end_pos = end_pos  # posición final
-        self.pos = (start_pos + end_pos) / 2
-        self.load = load  # magnitud carga
-        self.d = d  # dirección carga ('up' o 'down')
-        self.node_id = node_id  # id nodo
+# ajustar tamaño de ticks
+ax.tick_params(axis='x', labelsize=8)
 
 
 # creador de viga
@@ -74,7 +30,7 @@ class Beam:
         self.cargas = []  # [Load] lista con cargas
         self.eq_cargas = []  # [Load] lista con cargas transformadas a puntuales
         self.forces = []  # [Load] lista con todas las fuerzas (cargas y reacciones)
-        self.eq_forces = ([])  # [Load] lista con todas la fuerzas equivalentes en cargas puntuales
+        self.eq_forces = []  # [Load] lista con todas la fuerzas equivalentes en cargas puntuales
         self.calc_count = 0  # contador calculate()
         self.elements = []  # [Element] lista con elementos
         
@@ -105,15 +61,28 @@ class Beam:
         self.nodes.append(Node('distributed_load_R', end_pos, self.node_id, objeto))
         self.node_id += 1
         
+    # agregar carga triangular simple
+    def add_simple_triangular_load(self, start_pos, end_pos, load, a_d, d='down'):
+        if d == 'down':
+            load = -load   # signo carga (positivo hacia arriba, negativo hacia abajo)
+        objeto = TriangularLoad(start_pos, end_pos, load, a_d, d, [self.node_id, self.node_id+1])
+        self.cargas.append(objeto)
+        self.nodes.append(Node('simple_triangular_load_L', start_pos, self.node_id, objeto))
+        self.node_id += 1
+        self.nodes.append(Node('simple_triangular_load_R', end_pos, self.node_id, objeto))
+        self.node_id += 1
+        
     # calcular cargas equivalentes
     def equivalent_loads(self):
         for carga in self.cargas:
             if type(carga).__name__ == 'PointLoad':
                 self.eq_cargas.append(carga)
             elif type(carga).__name__ == 'DistributedLoad':
-                pos = (carga.start_pos + carga.end_pos)/2
-                load = carga.load * (carga.end_pos - carga.start_pos)
-                self.eq_cargas.append(PointLoad(pos, load, carga.d, self.node_id))
+                load = carga.load * carga.length
+                self.eq_cargas.append(PointLoad(carga.pos, load, carga.d, self.node_id))
+            elif type(carga).__name__ == 'TriangularLoad':
+                load = (carga.load * carga.length) / 2
+                self.eq_cargas.append(PointLoad(carga.pos, load, carga.d, self.node_id))
         
     # calcular reacciones
     def reactions(self):
@@ -160,17 +129,18 @@ class Beam:
             # eq_forces: fuerzas equivalentes en cargas puntuales
             for force in self.forces:
                 if type(force).__name__ == 'DistributedLoad':
-                    length = force.end_pos - force.start_pos
-                    load = force.load * length
-                    pos = (force.start_pos + force.end_pos)/2
-                    self.eq_forces.append(PointLoad(pos, load))
+                    load = force.load * force.length
+                    self.eq_forces.append(PointLoad(force.pos, load))
+                elif type(force).__name__ == 'TriangularLoad':
+                    load = force.load * (force.length/2)
+                    self.eq_forces.append(PointLoad(force.pos, load))
                 else:
                     self.eq_forces.append(force)
                     
             # nodos equivalentes (por si hay dos nodos en la misma posición)
             iteraciones = len(self.nodes)
             for j in range(iteraciones):
-                for i in range(len(self.nodes) - 1):
+                for i in range(iteraciones - 1):
                     if self.nodes[i].pos == self.nodes[i+1].pos:
                         if self.nodes[i].type == 'support':
                             load1 = self.nodes[i].load
@@ -363,46 +333,69 @@ class Beam:
                 arrow_h = self.L/6.8
                 arrow_w = self.L/250
                 head_w = self.L/60
-                text_dy = arrow_h + arrow_h/4
+                text_dy = arrow_h + arrow_h/5
                 if carga.d == 'down':
                     ax.arrow(carga.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color='black', linewidth=0.5, zorder=4)
-                    ax.text(carga.pos, text_dy, f'{abs(carga.load)} kN', horizontalalignment='center', verticalalignment='center', fontsize=8, zorder=4)
-            else:
+                    ax.text(carga.pos, text_dy, f'{abs(carga.load)} kN', horizontalalignment='center', verticalalignment='center', fontsize=6, zorder=4)
+            elif type(carga).__name__ == 'DistributedLoad':
                 arrow_h = self.L/9.5
                 arrow_w = self.L/380
                 head_w = self.L/80
                 text_dy = arrow_h + arrow_h/4
-                dist = carga.end_pos - carga.start_pos
                 mid_pos = (carga.start_pos + carga.end_pos)/2
                 if carga.d == 'down':
-                    if isinstance(dist, int):
+                    if isinstance(carga.length, int):
                         for i in range(carga.start_pos, carga.end_pos + 1):
                             ax.arrow(i, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color='black', linewidth=0.5, zorder=4)
-                    ax.hlines(y=arrow_h, xmin=carga.start_pos, xmax=carga.end_pos, color='black', linewidth=1.3, zorder=4)
-                    ax.text(mid_pos, text_dy, f'{abs(carga.load)} kN$\cdot$m', horizontalalignment='center', verticalalignment='center', fontsize=8, zorder=4)
-                
+                        ax.hlines(y=arrow_h, xmin=carga.start_pos, xmax=carga.end_pos, color='black', linewidth=1.3, zorder=4)
+                        ax.text(mid_pos, text_dy, f'{abs(carga.load)} kN/m', horizontalalignment='center', verticalalignment='center', fontsize=6, zorder=4)
+            elif type(carga).__name__ == 'TriangularLoad':
+                arrow_h = self.L/9.5
+                h_factor = arrow_h/carga.length
+                arrow_w = self.L/380
+                head_w = self.L/80
+                text_dy = arrow_h + arrow_h/4
+                if isinstance(carga.length, int):
+                    if carga.a_d == 'ascending':
+                        h = 0
+                        for i in range(carga.start_pos, carga.end_pos + 1):
+                            ax.arrow(i, h, 0, -h, width=arrow_w, head_width=head_w, length_includes_head=True, color='black', linewidth=0.5, zorder=4)
+                            h += h_factor
+                        ax.plot((carga.start_pos, carga.end_pos), (0, arrow_h), color='black', linewidth=1.3, zorder=4)
+                        ax.text(carga.end_pos, text_dy, f'{abs(carga.load)} kN/m', horizontalalignment='center', verticalalignment='center', fontsize=6, zorder=4)
+                    elif carga.a_d == 'descending':
+                        h = arrow_h
+                        for i in range(carga.start_pos, carga.end_pos + 1):
+                            ax.arrow(i, h, 0, -h, width=arrow_w, head_width=head_w, length_includes_head=True, color='black', linewidth=0.5, zorder=4)
+                            h -= h_factor
+                        ax.plot((carga.start_pos, carga.end_pos), (arrow_h, 0), color='black', linewidth=1.3, zorder=4)
+                        ax.text(carga.start_pos, text_dy, f'{abs(carga.load)} kN/m', horizontalalignment='center', verticalalignment='center', fontsize=6, zorder=4)
+                                
     # dibujar reacciones
     def draw_reactions(self):
         for support in self.supports:
             arrow_h = self.L/8.5
             arrow_w = self.L/170
             head_w = self.L/(17/0.35)
-            text_dy = arrow_h + arrow_h/4
+            text_dy = arrow_h + arrow_h/5
             if support.yreaction > 0:
                 ax.arrow(support.pos, -arrow_h, 0, arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor='red', linewidth=0.5, zorder=4)
-                ax.text(support.pos, -text_dy, f'{round(abs(support.yreaction), 2)} kN', horizontalalignment='center', verticalalignment='center', fontsize=8, zorder=4)
+                ax.text(support.pos, -text_dy, f'{round(abs(support.yreaction), 2)} kN', horizontalalignment='center', verticalalignment='center', fontsize=6, zorder=4)
             elif support.yreaction < 0:
                 ax.arrow(support.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor='red', linewidth=0.5, zorder=4)
-                ax.text(support.pos, text_dy, f'{round(abs(support.yreaction), 2)} kN', horizontalalignment='center', verticalalignment='center', fontsize=8, zorder=4)
+                ax.text(support.pos, text_dy, f'{round(abs(support.yreaction), 2)} kN', horizontalalignment='center', verticalalignment='center', fontsize=6, zorder=4)
                 
     # dibujar linea en cargas
     def draw_load_lines(self):
         for carga in self.cargas:
-            if carga.type == 'point':
-                ax.axvline(x=carga.pos, ymax=0.5, color='gray', linestyle='--', linewidth=0.5)
-            elif carga.type == 'distributed':
-                ax.axvline(x=carga.start_pos, ymax=0.5, color='gray', linestyle='--', linewidth=0.5)
-                ax.axvline(x=carga.end_pos, ymax=0.5, color='gray', linestyle='--', linewidth=0.5)
+            if type(carga).__name__ == 'PointLoad':
+                ax.axvline(x=carga.pos, ymax=0.5, color='gray', linestyle='--', linewidth=0.5, zorder=0)
+            elif type(carga).__name__ == 'DistributedLoad':
+                ax.axvline(x=carga.start_pos, ymax=0.5, color='gray', linestyle='--', linewidth=0.5, zorder=0)
+                ax.axvline(x=carga.end_pos, ymax=0.5, color='gray', linestyle='--', linewidth=0.5, zorder=0)
+            elif type(carga).__name__ == 'TriangularLoad':
+                ax.axvline(x=carga.start_pos, ymax=0.5, color='gray', linestyle='--', linewidth=0.5, zorder=0)
+                ax.axvline(x=carga.end_pos, ymax=0.5, color='gray', linestyle='--', linewidth=0.5, zorder=0)
                 
     # definir xticks
     def xticks(self):
@@ -410,9 +403,12 @@ class Beam:
         for support in self.supports:
             ticks.append(support.pos)
         for carga in self.cargas:
-            if carga.type == 'point':
+            if type(carga).__name__ == 'PointLoad':
                 ticks.append(carga.pos)
-            elif carga.type == 'distributed':
+            elif type(carga).__name__ == 'DistributedLoad':
+                ticks.append(carga.start_pos)
+                ticks.append(carga.end_pos)
+            elif type(carga).__name__ == 'TriangularLoad':
                 ticks.append(carga.start_pos)
                 ticks.append(carga.end_pos)
         ax.set_xticks(ticks)
