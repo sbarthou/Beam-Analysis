@@ -174,7 +174,7 @@ class Beam:
             for i in range(elements_num):
                 self.elements.append(Element(self.nodes[i], self.nodes[i + 1]))
 
-            # calcular el valor que se le restará a x al calcular el momento
+            # calcular el valor que se le restará a x al calcular la fuerza cortante y el momento flector
             suma = 0
             for i in range(1, elements_num):
                 suma += self.elements[i - 1].length
@@ -234,31 +234,63 @@ class Beam:
             tramoX_ex = tramosX_ex[i]
 
             if node.type == "point_load" or node.type == "support":
+                # print(node.type) #
+                # print(tramoX) #
                 eq = node.load
                 eqV.append(eq)
+                # print(f'{i+1} -> eq: {eq}') #
+                # print(f'{i+1} -> eqV: {eqV}') #
                 eqV_sum = sum(eqV)
+                # print(f'{i+1} -> eqV_sum: {eqV_sum}') #
+                # print(f'for _ in {range(len(tramo))}:') #
                 for X in tramoX:
                     V.append(eqV_sum)
                     ejeX.append(X)
+                    # print(f'  V: {V}') #
+                # print('end for loop') #
+                # print('') #
 
             elif node.type == "distributed_load_L":
+                # print(node.type) #
+                # print(tramoX) #
                 x = sp.Symbol("x")
                 eq = node.load * (x - element.subx)
                 eqV.append(eq)
                 eqV_sum = sum(eqV)
+                # print(f'{i+1} -> eq: {eq}') #
+                # print(f'{i+1} -> eqV: {eqV}') #
+                # print(f'{i+1} -> eqV_sum: {eqV_sum}') #
+                # print(f'for X in {tramo}:') #
                 for X in tramoX:
                     v = eqV_sum.subs(x, X)
+                    # print(f'  eqV_sum({X}) -> {v}') #
                     V.append(v)
                     ejeX.append(X)
+                    # print(f'  V: {V}') #
+                # print('end for loop') #
+                # print(f'eqV = {eqV}') #
+                # print(f'eqV[-1] = eq.subs(x, X) -> {eqV[-1]} = eq: {eq} , x -> {X} = {eq.subs(x, X)}') #
                 eqV[-1] = eq.subs(x, X)
+                # print('') #
 
             elif node.type == "distributed_load_R":
+                # print(node.type) #
+                # print(tramoX) #
                 eqV_sum = sum(eqV)
+                # print(f'{i+1} -> eq: {eq}') #
+                # print(f'{i+1} -> eqV: {eqV}') #
+                # print(f'{i+1} -> eqV_sum: {eqV_sum}') #
+                # print(f'for _ in {range(len(tramo))}:') #
                 for X in tramoX:
                     V.append(eqV_sum)
                     ejeX.append(X)
+                    # print(f'  V: {V}') #
+                # print('end for loop') #
+                # print('') #
 
             elif node.type == "triangular_load_min":
+                # print(node.type) #
+                # print(tramoX_ex) #
                 if node.objeto.a_d == "ascending":
                     x = sp.Symbol("x")
                     base = x - element.subx
@@ -273,11 +305,20 @@ class Beam:
                     eqV[-1] = eq.subs(x, X)
 
             elif node.type == "triangular_load_max":
+                # print(node.type) #
+                # print(f'eqV = {eqV}') #
+                # print(f'eqV_sum = {eqV_sum}') #
                 if node.objeto.a_d == "ascending":
                     eqV_sum = sum(eqV)
                     for X in tramoX:
                         V.append(eqV_sum)
                         ejeX.append(X)
+                # print('') #
+
+        # print(eqV) #
+        # print(V) #
+        # print(f'len ejeX: {len(ejeX)}') #
+        # print(f'len V: {len(V)}') #
 
         return V, ejeX
 
@@ -289,6 +330,7 @@ class Beam:
 
         M = []
         eqM = []
+
         for i in range(len(self.elements)):
             node = self.nodes[i]
             element = self.elements[i]
@@ -447,7 +489,7 @@ class Beam:
         if nodes == True:
             self.draw_nodes()
         if load_lines == True:
-            self.draw_load_lines()
+            self.draw_node_lines()
             self.xticks()
         if solicitado == ["beam"]:
             plt.show()
@@ -479,6 +521,7 @@ class Beam:
         V = np.array(V, dtype=float)
 
         ax.plot(x, V)
+
         ax.fill_between(x, V, color="#328DCB", alpha=0.4)
 
         y_max = max(abs(np.asarray(V)))
@@ -505,6 +548,7 @@ class Beam:
         M = np.array(M, dtype=float)
 
         ax.plot(x_ex, M)
+
         ax.fill_between(x_ex, M, color="#328DCB", alpha=0.4)
 
         y_max = max(abs(np.asarray(M)))

@@ -11,6 +11,6 @@ class TriangularLoad:
         self.node_id = node_id  # id nodo
         # definir posición
         if a_d == "ascending":
-            self.pos = start_pos + (2 * (end_pos - start_pos)) / 3
+            self.pos = start_pos + (2 / 3) * (end_pos - start_pos)
         elif a_d == "descending":
-            self.pos = start_pos + (end_pos - start_pos) / 3
+            self.pos = start_pos + (1 / 3) * (end_pos - start_pos)
