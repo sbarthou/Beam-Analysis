@@ -1,5 +1,5 @@
 * Shear force descending triangular load
 * Bending moment descending triangular load
 * Cargas distribuidas y triangulares en extremos de la viga
-* Mostrar máximos y mínimos en diagramas
+* Mostrar puntos críticos en diagramas (mínimo, máximo, puntos de cargas)
 * Gráfico de diagramas interactivo: mostrar coordenadas al pasar el mouse sobre diagrama
