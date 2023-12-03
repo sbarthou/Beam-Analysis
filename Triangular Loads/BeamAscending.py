@@ -174,7 +174,7 @@ class Beam:
             for i in range(elements_num):
                 self.elements.append(Element(self.nodes[i], self.nodes[i + 1]))
 
-            # calcular el valor que se le restará a x al calcular la fuerza cortante y el momento flector
+            # calcular el valor que se le restará a x al calcular el momento
             suma = 0
             for i in range(1, elements_num):
                 suma += self.elements[i - 1].length
@@ -232,67 +232,34 @@ class Beam:
             element = self.elements[i]
             tramoX = tramosX[i]
             tramoX_ex = tramosX_ex[i]
+            x = sp.Symbol("x")
 
             if node.type == "point_load" or node.type == "support":
-                # print(node.type) #
-                # print(tramoX) #
                 eq = node.load
                 eqV.append(eq)
-                # print(f'{i+1} -> eq: {eq}') #
-                # print(f'{i+1} -> eqV: {eqV}') #
                 eqV_sum = sum(eqV)
-                # print(f'{i+1} -> eqV_sum: {eqV_sum}') #
-                # print(f'for _ in {range(len(tramo))}:') #
                 for X in tramoX:
                     V.append(eqV_sum)
                     ejeX.append(X)
-                    # print(f'  V: {V}') #
-                # print('end for loop') #
-                # print('') #
 
             elif node.type == "distributed_load_L":
-                # print(node.type) #
-                # print(tramoX) #
-                x = sp.Symbol("x")
                 eq = node.load * (x - element.subx)
                 eqV.append(eq)
                 eqV_sum = sum(eqV)
-                # print(f'{i+1} -> eq: {eq}') #
-                # print(f'{i+1} -> eqV: {eqV}') #
-                # print(f'{i+1} -> eqV_sum: {eqV_sum}') #
-                # print(f'for X in {tramo}:') #
                 for X in tramoX:
                     v = eqV_sum.subs(x, X)
-                    # print(f'  eqV_sum({X}) -> {v}') #
                     V.append(v)
                     ejeX.append(X)
-                    # print(f'  V: {V}') #
-                # print('end for loop') #
-                # print(f'eqV = {eqV}') #
-                # print(f'eqV[-1] = eq.subs(x, X) -> {eqV[-1]} = eq: {eq} , x -> {X} = {eq.subs(x, X)}') #
                 eqV[-1] = eq.subs(x, X)
-                # print('') #
 
             elif node.type == "distributed_load_R":
-                # print(node.type) #
-                # print(tramoX) #
                 eqV_sum = sum(eqV)
-                # print(f'{i+1} -> eq: {eq}') #
-                # print(f'{i+1} -> eqV: {eqV}') #
-                # print(f'{i+1} -> eqV_sum: {eqV_sum}') #
-                # print(f'for _ in {range(len(tramo))}:') #
                 for X in tramoX:
                     V.append(eqV_sum)
                     ejeX.append(X)
-                    # print(f'  V: {V}') #
-                # print('end for loop') #
-                # print('') #
 
             elif node.type == "triangular_load_min":
-                # print(node.type) #
-                # print(tramoX_ex) #
                 if node.objeto.a_d == "ascending":
-                    x = sp.Symbol("x")
                     base = x - element.subx
                     w = (node.load / element.length) * base  # calcular razón entre triángulos para obtener la altura en términos de x (ver info.md)
                     eq = (w * base) / 2
@@ -305,20 +272,11 @@ class Beam:
                     eqV[-1] = eq.subs(x, X)
 
             elif node.type == "triangular_load_max":
-                # print(node.type) #
-                # print(f'eqV = {eqV}') #
-                # print(f'eqV_sum = {eqV_sum}') #
                 if node.objeto.a_d == "ascending":
                     eqV_sum = sum(eqV)
                     for X in tramoX:
                         V.append(eqV_sum)
                         ejeX.append(X)
-                # print('') #
-
-        # print(eqV) #
-        # print(V) #
-        # print(f'len ejeX: {len(ejeX)}') #
-        # print(f'len V: {len(V)}') #
 
         return V, ejeX
 
@@ -326,7 +284,6 @@ class Beam:
     def bending_moment(self):
         self.calculate()
         tramosX, tramosX_ex, tramos, eje_x, x_ex = self.tramos()
-        x = sp.Symbol("x")
 
         M = []
         eqM = []
@@ -335,30 +292,52 @@ class Beam:
             node = self.nodes[i]
             element = self.elements[i]
             tramo = tramosX_ex[i]
+            x = sp.Symbol("x")
 
             if node.type == "point_load" or node.type == "support":
-                m = node.load * (x - element.subx)
-                eqM.append(m)
+                eq = node.load * (x - element.subx)
+                eqM.append(eq)
                 eqM_sum = sum(eqM)
                 for X in tramo:
                     M.append(eqM_sum.subs(x, X))
 
             elif node.type == "distributed_load_L":
-                m = node.load * (x - element.subx) * ((x - element.subx) / 2)
-                eqM.append(m)
+                eq = node.load * (x - element.subx) * ((x - element.subx) / 2)
+                eqM.append(eq)
                 eqM_sum = sum(eqM)
                 for X in tramo:
                     M.append(eqM_sum.subs(x, X))
-                new_last_m = node.load * (x - element.subx)
-                eqM[-1] = new_last_m.subs(x, X)
+                new_last_eq = node.load * (x - element.subx)
+                eqM[-1] = new_last_eq.subs(x, X)
 
             elif node.type == "distributed_load_R":
-                m = eqM[-1] * (x - (self.elements[i - 1].subx + (element.subx - self.elements[i - 1].subx) / 2))
+                eq = eqM[-1] * (x - (self.elements[i - 1].subx + (element.subx - self.elements[i - 1].subx) / 2))
                 eqM.pop()
-                eqM.append(m)
+                eqM.append(eq)
                 eqM_sum = sum(eqM)
                 for X in tramo:
                     M.append(eqM_sum.subs(x, X))
+
+            elif node.type == "triangular_load_min":
+                if node.objeto.a_d == "ascending":
+                    base = x - element.subx
+                    w = (node.load / element.length) * base
+                    eq = ((w * base) / 2) * ((1 / 3) * base)
+                    eqM.append(eq)
+                    eqM_sum = sum(eqM)
+                    for X in tramo:
+                        M.append(eqM_sum.subs(x, X))
+                    new_last_eq = (node.load * (x - element.subx)) / 2
+                    eqM[-1] = new_last_eq.subs(x, X)
+
+            elif node.type == "triangular_load_max":
+                if node.objeto.a_d == "ascending":
+                    eq = eqM[-1] * (x - (self.elements[i - 1].subx + ((element.subx - self.elements[i - 1].subx) * (2 / 3))))
+                    eqM.pop()
+                    eqM.append(eq)
+                    eqM_sum = sum(eqM)
+                    for X in tramo:
+                        M.append(eqM_sum.subs(x, X))
 
         return M
 
@@ -398,7 +377,7 @@ class Beam:
     # dibujar nodos
     def draw_nodes(self):
         for node in self.nodes:
-            ax.scatter(node.pos, 0, s=20, c="#FFD500", marker="s", linewidths=0.5, edgecolors="black", zorder=3)
+            ax.scatter(node.pos, 0, s=20, c="#FFD500", marker="s", linewidths=0.5, edgecolors="black", zorder=1)
 
     # dibujar linea en nodos
     def draw_node_lines(self):
@@ -422,8 +401,8 @@ class Beam:
                 head_w = self.L / 60
                 text_dy = arrow_h + arrow_h / 5
                 if carga.d == "down":
-                    ax.arrow(carga.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=4)
-                    ax.text(carga.pos, text_dy, f"{abs(carga.load)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
+                    ax.arrow(carga.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=2)
+                    ax.text(carga.pos, text_dy, f"{abs(carga.load)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=2)
             # dibujar carga distribuida
             elif type(carga).__name__ == "DistributedLoad":
                 arrow_h = self.L / 9.5
@@ -434,9 +413,9 @@ class Beam:
                 if carga.d == "down":
                     if isinstance(carga.length, int):
                         for i in range(carga.start_pos, carga.end_pos + 1):
-                            ax.arrow(i, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=4)
-                        ax.hlines(y=arrow_h, xmin=carga.start_pos, xmax=carga.end_pos, color="black", linewidth=1.3, zorder=4)
-                        ax.text(mid_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
+                            ax.arrow(i, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=2)
+                        ax.hlines(y=arrow_h, xmin=carga.start_pos, xmax=carga.end_pos, color="black", linewidth=1.3, zorder=2)
+                        ax.text(mid_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=2)
             # dibujar carga triangular
             elif type(carga).__name__ == "TriangularLoad":
                 arrow_h = self.L / 9.5
@@ -448,17 +427,17 @@ class Beam:
                     if carga.a_d == "ascending":
                         h = 0
                         for i in range(carga.start_pos, carga.end_pos + 1):
-                            ax.arrow(i, h, 0, -h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=4)
+                            ax.arrow(i, h, 0, -h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=2)
                             h += h_factor
-                        ax.plot((carga.start_pos, carga.end_pos), (0, arrow_h), color="black", linewidth=1.3, zorder=4)
-                        ax.text(carga.end_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
+                        ax.plot((carga.start_pos, carga.end_pos), (0, arrow_h), color="black", linewidth=1.3, zorder=2)
+                        ax.text(carga.end_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=2)
                     elif carga.a_d == "descending":
                         h = arrow_h
                         for i in range(carga.start_pos, carga.end_pos + 1):
-                            ax.arrow(i, h, 0, -h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=4)
+                            ax.arrow(i, h, 0, -h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=2)
                             h -= h_factor
-                        ax.plot((carga.start_pos, carga.end_pos), (arrow_h, 0), color="black", linewidth=1.3, zorder=4)
-                        ax.text(carga.start_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
+                        ax.plot((carga.start_pos, carga.end_pos), (arrow_h, 0), color="black", linewidth=1.3, zorder=2)
+                        ax.text(carga.start_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=2)
 
     # dibujar reacciones
     def draw_reactions(self):
@@ -468,11 +447,11 @@ class Beam:
             head_w = self.L / (17 / 0.35)
             text_dy = arrow_h + arrow_h / 5
             if support.yreaction > 0:
-                ax.arrow(support.pos, -arrow_h, 0, arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor="red", linewidth=0.5, zorder=4)
-                ax.text(support.pos, -text_dy, f"{round(abs(support.yreaction), 3)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
+                ax.arrow(support.pos, -arrow_h, 0, arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor="red", linewidth=0.5, zorder=2)
+                ax.text(support.pos, -text_dy, f"{round(abs(support.yreaction), 3)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=2)
             elif support.yreaction < 0:
-                ax.arrow(support.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor="red", linewidth=0.5, zorder=4)
-                ax.text(support.pos, text_dy, f"{round(abs(support.yreaction), 3)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
+                ax.arrow(support.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor="red", linewidth=0.5, zorder=2)
+                ax.text(support.pos, text_dy, f"{round(abs(support.yreaction), 3)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=2)
 
     # dibujar solicitado
     def draw_beam_elements(self, solicitado, nodes=False, load_lines=False):  # solicitado = ['beam', 'supports', 'loads', 'reactions']
@@ -489,7 +468,7 @@ class Beam:
         if nodes == True:
             self.draw_nodes()
         if load_lines == True:
-            self.draw_node_lines()
+            self.draw_load_lines()
             self.xticks()
         if solicitado == ["beam"]:
             plt.show()
@@ -521,7 +500,6 @@ class Beam:
         V = np.array(V, dtype=float)
 
         ax.plot(x, V)
-
         ax.fill_between(x, V, color="#328DCB", alpha=0.4)
 
         y_max = max(abs(np.asarray(V)))
@@ -540,7 +518,7 @@ class Beam:
         self.draw_beam_elements(["beam"])
 
     # dibujar diagrama de momento flector
-    def draw_moment(self, nodes=False):
+    def draw_moment(self, nodes=False, max_value=False):
         M = self.bending_moment()
         tramosX, tramosX_ex, tramos, x, x_ex = self.tramos()
 
@@ -548,8 +526,11 @@ class Beam:
         M = np.array(M, dtype=float)
 
         ax.plot(x_ex, M)
-
         ax.fill_between(x_ex, M, color="#328DCB", alpha=0.4)
+        
+        if max_value == True:
+            indice_max_M, valor_max_M = max(enumerate(M), key=lambda x: x[1])
+            ax.scatter(x_ex[indice_max_M], valor_max_M, s=20, c='red', zorder=2)
 
         y_max = max(abs(np.asarray(M)))
         ax.set_ylim(-(y_max * 2), (y_max * 2))
