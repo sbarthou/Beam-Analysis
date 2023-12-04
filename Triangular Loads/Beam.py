@@ -232,6 +232,7 @@ class Beam:
             element = self.elements[i]
             tramoX = tramosX[i]
             tramoX_ex = tramosX_ex[i]
+            x = sp.Symbol("x")
 
             if node.type == "point_load" or node.type == "support":
                 eq = node.load
@@ -242,13 +243,11 @@ class Beam:
                     ejeX.append(X)
 
             elif node.type == "distributed_load_L":
-                x = sp.Symbol("x")
                 eq = node.load * (x - element.subx)
                 eqV.append(eq)
                 eqV_sum = sum(eqV)
                 for X in tramoX:
-                    v = eqV_sum.subs(x, X)
-                    V.append(v)
+                    V.append(eqV_sum.subs(x, X))
                     ejeX.append(X)
                 eqV[-1] = eq.subs(x, X)
 
@@ -260,20 +259,38 @@ class Beam:
 
             elif node.type == "triangular_load_min":
                 if node.objeto.a_d == "ascending":
-                    x = sp.Symbol("x")
                     base = x - element.subx
                     w = (node.load / element.length) * base  # calcular razón entre triángulos para obtener la altura en términos de x (ver info.md)
                     eq = (w * base) / 2
                     eqV.append(eq)
                     eqV_sum = sum(eqV)
                     for X in tramoX_ex:
-                        v = eqV_sum.subs(x, X)
-                        V.append(v)
+                        V.append(eqV_sum.subs(x, X))
                         ejeX.append(X)
                     eqV[-1] = eq.subs(x, X)
 
+                elif node.objeto.a_d == "descending":
+                    eqV_sum = sum(eqV)
+                    for X in tramoX:
+                        V.append(eqV_sum)
+                        ejeX.append(X)
+
             elif node.type == "triangular_load_max":
-                if node.objeto.a_d == "ascending":
+                if node.objeto.a_d == "descending":
+                    base = x - element.subx
+                    h = (node.load / element.length) * base
+                    k = node.load - h
+                    triangulo = (h * base) / 2
+                    cuadrado = k * base
+                    eq = triangulo + cuadrado
+                    eqV.append(eq)
+                    eqV_sum = sum(eqV)
+                    for X in tramoX_ex:
+                        V.append(eqV_sum.subs(x, X))
+                        ejeX.append(X)
+                    eqV[-1] = eq.subs(x, X)
+
+                elif node.objeto.a_d == "ascending":
                     eqV_sum = sum(eqV)
                     for X in tramoX:
                         V.append(eqV_sum)
@@ -285,45 +302,110 @@ class Beam:
     def bending_moment(self):
         self.calculate()
         tramosX, tramosX_ex, tramos, eje_x, x_ex = self.tramos()
-        x = sp.Symbol("x")
 
         M = []
         eqM = []
+
         for i in range(len(self.elements)):
             node = self.nodes[i]
             element = self.elements[i]
             tramo = tramosX_ex[i]
+            x = sp.Symbol("x")
 
             if node.type == "point_load" or node.type == "support":
-                m = node.load * (x - element.subx)
-                eqM.append(m)
+                eq = node.load * (x - element.subx)
+                eqM.append(eq)
                 eqM_sum = sum(eqM)
                 for X in tramo:
                     M.append(eqM_sum.subs(x, X))
 
             elif node.type == "distributed_load_L":
-                m = node.load * (x - element.subx) * ((x - element.subx) / 2)
-                eqM.append(m)
+                eq = node.load * (x - element.subx) * ((x - element.subx) / 2)
+                eqM.append(eq)
                 eqM_sum = sum(eqM)
                 for X in tramo:
                     M.append(eqM_sum.subs(x, X))
-                new_last_m = node.load * (x - element.subx)
-                eqM[-1] = new_last_m.subs(x, X)
+                new_last_eq = node.load * (x - element.subx)
+                eqM[-1] = new_last_eq.subs(x, X)
 
             elif node.type == "distributed_load_R":
-                m = eqM[-1] * (x - (self.elements[i - 1].subx + (element.subx - self.elements[i - 1].subx) / 2))
+                eq = eqM[-1] * (x - (self.elements[i - 1].subx + (self.elements[i - 1].length / 2)))
                 eqM.pop()
-                eqM.append(m)
+                eqM.append(eq)
                 eqM_sum = sum(eqM)
                 for X in tramo:
                     M.append(eqM_sum.subs(x, X))
+
+            elif node.type == "triangular_load_min":
+                if node.objeto.a_d == "ascending":
+                    base = x - element.subx
+                    w = (node.load / element.length) * base
+                    eq = ((w * base) / 2) * ((1 / 3) * base)
+                    eqM.append(eq)
+                    eqM_sum = sum(eqM)
+                    for X in tramo:
+                        M.append(eqM_sum.subs(x, X))
+                    new_last_eq = (node.load * (x - element.subx)) / 2
+                    eqM[-1] = new_last_eq.subs(x, X)
+
+                elif node.objeto.a_d == "descending":
+                    eq = eqM[-1] * (x - (self.elements[i - 1].subx + (self.elements[i - 1].length * (1 / 3))))
+                    eqM.pop()
+                    eqM.append(eq)
+                    eqM_sum = sum(eqM)
+                    for X in tramo:
+                        M.append(eqM_sum.subs(x, X))
+
+            elif node.type == "triangular_load_max":
+                if node.objeto.a_d == "descending":
+                    base = x - element.subx
+                    h = (node.load / element.length) * base
+                    k = node.load - h
+                    triangulo = ((h * base) / 2) * ((2 / 3) * base)
+                    cuadrado = (k * base) / 2
+                    eq = triangulo + cuadrado
+                    eqM.append(eq)
+                    eqM_sum = sum(eqM)
+                    for X in tramo:
+                        M.append(eqM_sum.subs(x, X))
+                    new_last_eq = (node.load * (x - element.subx)) / 2
+                    eqM[-1] = new_last_eq.subs(x, X)
+
+                elif node.objeto.a_d == "ascending":
+                    eq = eqM[-1] * (x - (self.elements[i - 1].subx + (self.elements[i - 1].length * (2 / 3))))
+                    eqM.pop()
+                    eqM.append(eq)
+                    eqM_sum = sum(eqM)
+                    for X in tramo:
+                        M.append(eqM_sum.subs(x, X))
 
         return M
 
     # artistas de viga
+    # definir xticks
+    def newTicks(self, coords=None):
+        if coords is not None:
+            ax.set_xticks([coords[0]])
+            ax.set_yticks([coords[1]])
+        else:
+            ticks = []
+            for node in self.nodes:
+                ticks.append(node.pos)
+            ax.set_xticks(ticks)
+
     # dibujar viga
     def draw_beam(self):
-        ax.hlines(y=0, xmin=0, xmax=self.L, color="black", linewidth=3)
+        ax.hlines(y=0, xmin=0, xmax=self.L, color="#000000", linewidth=3)
+
+    # dibujar nodos
+    def draw_nodes(self):
+        for node in self.nodes:
+            ax.scatter(node.pos, 0, s=20, c="#FFD500", marker="s", linewidths=0.5, edgecolors="#000000", zorder=2)
+
+    # dibujar linea en nodos
+    def draw_node_lines(self):
+        for node in self.nodes:
+            ax.axvline(x=node.pos, ymax=0.5, color="#909090", linestyle="--", linewidth=0.5, dashes=(4, 3), zorder=0)
 
     # dibujar apoyos
     def draw_supports(self):
@@ -334,7 +416,7 @@ class Beam:
         def sub_support(pos):
             sub_l = l + l * 0.35  # longitud sub-apoyo
             sub_h = h + l * 0.45  # altura sub-apoyo
-            ax.hlines(y=-h, xmin=pos - sub_l, xmax=pos + sub_l, color="black")
+            ax.hlines(y=-h, xmin=pos - sub_l, xmax=pos + sub_l, color="#000000")
             ax.fill((pos - sub_l, pos + sub_l, pos + sub_l, pos - sub_l), (-h, -h, -sub_h, -sub_h), color="#CBCBCB")
 
         def drawSupports(support):
@@ -353,22 +435,19 @@ class Beam:
         for support in self.supports:
             drawSupports(support)
 
-    # dibujar nodos
-    def draw_nodes(self):
-        for node in self.nodes:
-            ax.scatter(node.pos, 0, s=20, c="#FFD500", marker="s", linewidths=0.5, edgecolors="black", zorder=3)
-
-    # dibujar linea en nodos
-    def draw_node_lines(self):
-        for node in self.nodes:
-            ax.axvline(x=node.pos, ymax=0.5, color="gray", linestyle="--", linewidth=0.5, zorder=0)
-
-    # definir xticks
-    def xticks(self):
-        ticks = []
-        for node in self.nodes:
-            ticks.append(node.pos)
-        ax.set_xticks(ticks)
+    # dibujar reacciones
+    def draw_reactions(self, decimals=2):
+        for support in self.supports:
+            arrow_h = self.L / 8.5
+            arrow_w = self.L / 170
+            head_w = self.L / (17 / 0.35)
+            text_dy = arrow_h + arrow_h / 5
+            if support.yreaction > 0:
+                ax.arrow(support.pos, -arrow_h, 0, arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor="#FF0000", linewidth=0.5, zorder=3)
+                ax.text(support.pos, -text_dy, f"{round(abs(support.yreaction), decimals)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=3)
+            elif support.yreaction < 0:
+                ax.arrow(support.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor="#FF0000", linewidth=0.5, zorder=3)
+                ax.text(support.pos, text_dy, f"{round(abs(support.yreaction), decimals)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=3)
 
     # dibujar cargas
     def draw_loads(self):
@@ -380,8 +459,8 @@ class Beam:
                 head_w = self.L / 60
                 text_dy = arrow_h + arrow_h / 5
                 if carga.d == "down":
-                    ax.arrow(carga.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=4)
-                    ax.text(carga.pos, text_dy, f"{abs(carga.load)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
+                    ax.arrow(carga.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color="#000000", linewidth=0.5, zorder=3)
+                    ax.text(carga.pos, text_dy, f"{abs(carga.load)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=3)
             # dibujar carga distribuida
             elif type(carga).__name__ == "DistributedLoad":
                 arrow_h = self.L / 9.5
@@ -392,9 +471,9 @@ class Beam:
                 if carga.d == "down":
                     if isinstance(carga.length, int):
                         for i in range(carga.start_pos, carga.end_pos + 1):
-                            ax.arrow(i, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=4)
-                        ax.hlines(y=arrow_h, xmin=carga.start_pos, xmax=carga.end_pos, color="black", linewidth=1.3, zorder=4)
-                        ax.text(mid_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
+                            ax.arrow(i, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, color="#000000", linewidth=0.5, zorder=3)
+                        ax.hlines(y=arrow_h, xmin=carga.start_pos, xmax=carga.end_pos, color="#000000", linewidth=1.3, zorder=3)
+                        ax.text(mid_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=3)
             # dibujar carga triangular
             elif type(carga).__name__ == "TriangularLoad":
                 arrow_h = self.L / 9.5
@@ -406,34 +485,20 @@ class Beam:
                     if carga.a_d == "ascending":
                         h = 0
                         for i in range(carga.start_pos, carga.end_pos + 1):
-                            ax.arrow(i, h, 0, -h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=4)
+                            ax.arrow(i, h, 0, -h, width=arrow_w, head_width=head_w, length_includes_head=True, color="#000000", linewidth=0.5, zorder=3)
                             h += h_factor
-                        ax.plot((carga.start_pos, carga.end_pos), (0, arrow_h), color="black", linewidth=1.3, zorder=4)
-                        ax.text(carga.end_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
+                        ax.plot((carga.start_pos, carga.end_pos), (0, arrow_h), color="#000000", linewidth=1.3, zorder=3)
+                        ax.text(carga.end_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=3)
                     elif carga.a_d == "descending":
                         h = arrow_h
                         for i in range(carga.start_pos, carga.end_pos + 1):
-                            ax.arrow(i, h, 0, -h, width=arrow_w, head_width=head_w, length_includes_head=True, color="black", linewidth=0.5, zorder=4)
+                            ax.arrow(i, h, 0, -h, width=arrow_w, head_width=head_w, length_includes_head=True, color="#000000", linewidth=0.5, zorder=3)
                             h -= h_factor
-                        ax.plot((carga.start_pos, carga.end_pos), (arrow_h, 0), color="black", linewidth=1.3, zorder=4)
-                        ax.text(carga.start_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
-
-    # dibujar reacciones
-    def draw_reactions(self):
-        for support in self.supports:
-            arrow_h = self.L / 8.5
-            arrow_w = self.L / 170
-            head_w = self.L / (17 / 0.35)
-            text_dy = arrow_h + arrow_h / 5
-            if support.yreaction > 0:
-                ax.arrow(support.pos, -arrow_h, 0, arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor="red", linewidth=0.5, zorder=4)
-                ax.text(support.pos, -text_dy, f"{round(abs(support.yreaction), 3)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
-            elif support.yreaction < 0:
-                ax.arrow(support.pos, arrow_h, 0, -arrow_h, width=arrow_w, head_width=head_w, length_includes_head=True, facecolor="red", linewidth=0.5, zorder=4)
-                ax.text(support.pos, text_dy, f"{round(abs(support.yreaction), 3)} kN", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=4)
+                        ax.plot((carga.start_pos, carga.end_pos), (arrow_h, 0), color="#000000", linewidth=1.3, zorder=3)
+                        ax.text(carga.start_pos, text_dy, f"{abs(carga.load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=3)
 
     # dibujar solicitado
-    def draw_beam_elements(self, solicitado, nodes=False, load_lines=False):  # solicitado = ['beam', 'supports', 'loads', 'reactions']
+    def draw_beam_elements(self, solicitado, nodes=False, load_lines=False, decimals=2):  # solicitado = ['beam', 'supports', 'loads', 'reactions']
         self.reactions()
         for artist in solicitado:
             if artist == "beam":
@@ -443,12 +508,12 @@ class Beam:
             elif artist == "loads":
                 self.draw_loads()
             elif artist == "reactions":
-                self.draw_reactions()
+                self.draw_reactions(decimals=decimals)
         if nodes == True:
             self.draw_nodes()
         if load_lines == True:
             self.draw_load_lines()
-            self.xticks()
+            self.newTicks()
         if solicitado == ["beam"]:
             plt.show()
         else:
@@ -456,15 +521,15 @@ class Beam:
             plt.show()
 
     # dibujar todos los elementos de la viga
-    def draw_beam_all(self, nodes=False, load_lines=True):
+    def draw_beam_all(self, nodes=False, load_lines=True, decimals=2):
         self.reactions()
         self.draw_beam()
         self.draw_supports()
         self.draw_loads()
-        self.draw_reactions()
+        self.draw_reactions(decimals=decimals)
         if load_lines == True:
             self.draw_node_lines()
-            self.xticks()
+            self.newTicks()
         if nodes == True:
             self.draw_nodes()
         plt.axis("equal")
@@ -497,7 +562,7 @@ class Beam:
         self.draw_beam_elements(["beam"])
 
     # dibujar diagrama de momento flector
-    def draw_moment(self, nodes=False):
+    def draw_moment(self, nodes=False, max_value=False, decimals=3):
         M = self.bending_moment()
         tramosX, tramosX_ex, tramos, x, x_ex = self.tramos()
 
@@ -517,6 +582,17 @@ class Beam:
         ax.grid(linewidth=0.1, which="minor", linestyle=":")  # sub cuadrícula
         ax.set_axisbelow(True)  # cuadrícula detrás de la gráfica
         ax.set_title("Diagrama de fuerza cortante")
+
+        if max_value == True:
+            indice_max_M, valor_max_M = max(enumerate(M), key=lambda x: x[1])
+            x_max = round(x_ex[indice_max_M], decimals)
+            M_max = round(valor_max_M, decimals)
+            ax.scatter(x_max, M_max, s=20, c="#FF0000", linewidth=0.6, edgecolor="#000000", zorder=3)  # zorder=3 porque ax.plot() tiene zorder=2 por defecto
+            ax.axhline(y=M_max, color="#707070", linestyle="--", linewidth=0.6, zorder=2)
+            ax.axvline(x=x_max, color="#707070", linestyle="--", linewidth=0.6, zorder=2)
+            ax.grid(False)
+            ax.minorticks_off()
+            self.newTicks(coords=(x_max, M_max))
 
         if nodes == True:
             self.draw_nodes()

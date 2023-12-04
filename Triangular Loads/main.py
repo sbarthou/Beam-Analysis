@@ -1,4 +1,4 @@
-from BeamAscending import Beam
+from Beam import Beam
 
 
 # Inicializa viga, agrega apoyos y cargas
