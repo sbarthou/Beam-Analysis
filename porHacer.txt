@@ -1,0 +1,6 @@
+* Cargas trapezoidales.
+* Cargas puntuales con ángulos.
+* Cargas de momento.
+* Deflección.
+* Gráfico de diagramas interactivo: mostrar coordenadas al pasar el mouse sobre diagrama.
+* Mostrar más de un gráfico a la vez.
