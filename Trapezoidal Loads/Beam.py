@@ -123,7 +123,7 @@ class Beam:
                     # triangulo
                     triangle_h = carga.end_load - carga.start_load
                     load = (triangle_h * carga.length) / 2
-                    self.eq_cargas.append(PointLoad(carga.triangle_pos, load, carga.d))  #, self.node_id
+                    self.eq_cargas.append(PointLoad(carga.triangle_pos, load, carga.d))  # , self.node_id
                 elif carga.a_d == "descending":
                     # rectangulo
                     load = carga.end_load * carga.length
@@ -131,7 +131,7 @@ class Beam:
                     # triangulo
                     triangle_h = carga.start_load - carga.end_load
                     load = (triangle_h * carga.length) / 2
-                    self.eq_cargas.append(PointLoad(carga.triangle_pos, load, carga.d))  #, self.node_id
+                    self.eq_cargas.append(PointLoad(carga.triangle_pos, load, carga.d))  # , self.node_id
 
     # calcular reacciones
     def reactions(self):
@@ -166,19 +166,26 @@ class Beam:
             self.forces = sorted(self.forces, key=lambda x: x.pos)  # ordenar fuerzas por posición
 
             self.nodes = sorted(self.nodes, key=lambda x: x.pos)  # ordenar nodos por posición
-            for node in self.nodes:
-                if node.type == "support":
+
+            for i in range(len(self.nodes)):
+                if self.nodes[i].type == "support":
                     for support in self.supports:
-                        if support.node_id == node.id:
-                            node.load = support.yreaction
+                        if support.node_id == self.nodes[i].id:
+                            self.nodes[i].load = support.yreaction
                 else:
                     for carga in self.cargas:
                         if type(carga.node_id) == list:
-                            if node.id in carga.node_id:
-                                node.load = carga.load
+                            if self.nodes[i].id in carga.node_id:
+                                if carga.type == "trapezoidal" and self.nodes[i].load == None:
+                                    self.nodes[i].load = carga.start_load
+                                    self.nodes[i + 1].load = carga.end_load
+                                elif carga.type == "trapezoidal" and self.nodes[i].load != None:
+                                    pass
+                                else:
+                                    self.nodes[i].load = carga.load
                         else:
-                            if node.id == carga.node_id:
-                                node.load = carga.load
+                            if self.nodes[i].id == carga.node_id:
+                                self.nodes[i].load = carga.load
 
             # eq_forces: fuerzas equivalentes en cargas puntuales
             for force in self.forces:
@@ -317,7 +324,6 @@ class Beam:
                         V.append(eqV_sum.subs(x, X))
                         ejeX.append(X)
                     eqV[-1] = eq.subs(x, X)
-
                 elif node.objeto.a_d == "descending":
                     eqV_sum = sum(eqV)
                     for X in tramoX:
@@ -338,12 +344,53 @@ class Beam:
                         V.append(eqV_sum.subs(x, X))
                         ejeX.append(X)
                     eqV[-1] = eq.subs(x, X)
-
                 elif node.objeto.a_d == "ascending":
                     eqV_sum = sum(eqV)
                     for X in tramoX:
                         V.append(eqV_sum)
                         ejeX.append(X)
+
+            elif node.type == "trapezoidal_load_min":
+                if node.objeto.a_d == "ascending":
+                    # rectangulo
+                    eq1 = node.load_neta * (x - element.subx)
+                    # triangulo
+                    base = x - element.subx
+                    w = ((self.nodes[i + 1].load - node.load) / element.length) * base
+                    eq2 = (w * base) / 2
+                    eq = eq1 + eq2
+                    eqV.append(eq)
+                    eqV_sum = sum(eqV)
+                    for X in tramoX_ex:
+                        V.append(eqV_sum.subs(x, X))
+                        ejeX.append(X)
+                    eqV[-1] = eq.subs(x, X)
+                elif node.objeto.a_d == "descending":
+                    eqV_sum = sum(eqV)
+                    for X in tramoX:
+                        V.append(eqV_sum)
+                        ejeX.append(X)
+                
+            elif node.type == "trapezoidal_load_max":
+                if node.objeto.a_d == "ascending":
+                    eqV_sum = sum(eqV)
+                    for X in tramoX:
+                        V.append(eqV_sum)
+                        ejeX.append(X)
+                elif node.objeto.a_d == "descending":
+                    # rectangulo
+                    eq1 = node.load_neta * (x - element.subx)
+                    # triangulo
+                    base = x - element.subx
+                    w = ((self.nodes[i + 1].load - node.load) / element.length) * base
+                    eq2 = (w * base) / 2
+                    eq = eq1 + eq2
+                    eqV.append(eq)
+                    eqV_sum = sum(eqV)
+                    for X in tramoX_ex:
+                        V.append(eqV_sum.subs(x, X))
+                        ejeX.append(X)
+                    eqV[-1] = eq.subs(x, X)
 
         return V, ejeX
 
@@ -572,8 +619,8 @@ class Beam:
                             h -= h_factor
                         ax.plot((carga.start_pos, carga.end_pos), (arrow_h_max, arrow_h_min), color="#000000", linewidth=1.3, zorder=3)
                         ax.text(carga.start_pos, text_dy_max, f"{abs(carga.start_load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=3)
-                        ax.text(carga.end_pos, text_dy_min, f"{abs(carga.end_load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=3) 
-                                    
+                        ax.text(carga.end_pos, text_dy_min, f"{abs(carga.end_load)} kN/m", horizontalalignment="center", verticalalignment="center", fontsize=6, zorder=3)
+
     # dibujar solicitado
     def draw_beam_elements(self, solicitado: list, nodes=False, load_lines=False, decimals=2):  # solicitado = ['beam', 'supports', 'loads', 'reactions']
         self.reactions()

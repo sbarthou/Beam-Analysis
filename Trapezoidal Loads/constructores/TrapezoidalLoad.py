@@ -4,6 +4,7 @@ class TrapezoidalLoad:
         self.type = "trapezoidal"
         self.start_pos = start_pos  # posición inicial
         self.end_pos = end_pos  # posición final
+        self.pos = start_pos
         self.length = end_pos - start_pos  # longitud
         self.start_load = start_load  # carga inicial
         self.end_load = end_load  # carga final
